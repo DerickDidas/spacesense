@@ -1,0 +1,312 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SpaceSense: telemetry anomaly replay</title>
+<script src="https://cdn.plot.ly/plotly-2.35.2.min.js" charset="utf-8"></script>
+<style>
+:root {
+  color-scheme: light;
+  --page:#f9f9f7; --surface:#fcfcfb; --ink:#0b0b0b; --ink2:#52514e; --muted:#898781;
+  --grid:#e1e0d9; --axis:#c3c2b7; --border:rgba(11,11,11,.10);
+  --s1:#2a78d6; --s2:#eb6834; --s3:#6250d6; --crit:#d03b3b;
+  --band:rgba(137,135,129,.22); --wash:rgba(208,59,59,.12);
+}
+@media (prefers-color-scheme: dark) {
+  :root:where(:not([data-theme="light"])) {
+    color-scheme: dark;
+    --page:#0d0d0d; --surface:#1a1a19; --ink:#f0efec; --ink2:#c3c2b7; --muted:#898781;
+    --grid:#2c2c2a; --axis:#383835; --border:rgba(255,255,255,.10);
+    --s1:#3987e5; --s2:#d95926; --s3:#9085e9; --crit:#d03b3b;
+    --band:rgba(195,194,183,.20); --wash:rgba(208,59,59,.18);
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --page:#0d0d0d; --surface:#1a1a19; --ink:#f0efec; --ink2:#c3c2b7; --muted:#898781;
+  --grid:#2c2c2a; --axis:#383835; --border:rgba(255,255,255,.10);
+  --s1:#3987e5; --s2:#d95926; --s3:#9085e9; --crit:#d03b3b;
+  --band:rgba(195,194,183,.20); --wash:rgba(208,59,59,.18);
+}
+* { box-sizing: border-box; }
+body { margin:0; background:var(--page); color:var(--ink);
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif; line-height:1.45; }
+main { max-width: 1080px; margin: 0 auto; padding: 24px 16px 48px; }
+h1 { font-size: 22px; margin: 0 0 4px; }
+.sub { color: var(--ink2); margin: 0 0 16px; font-size: 14px; }
+.filters { display:flex; flex-wrap:wrap; gap:12px; align-items:center; margin-bottom:16px; }
+.filters label { font-size:13px; color:var(--ink2); display:flex; gap:6px; align-items:center; }
+select, button { font: inherit; font-size:14px; color:var(--ink); background:var(--surface);
+  border:1px solid var(--border); border-radius:6px; padding:6px 10px; cursor:pointer; }
+button:hover, select:hover { border-color: var(--muted); }
+input[type=range] { flex:1; min-width:160px; accent-color: var(--s1); }
+.tiles { display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:12px; margin-bottom:16px; }
+.tile { background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:12px 14px; }
+.tile .label { font-size:13px; color:var(--ink2); }
+.tile .value { font-size:26px; font-weight:600; }
+.card { background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:12px 12px 8px; }
+#chart { width:100%; height:480px; }
+.legend { display:flex; flex-wrap:wrap; gap:16px; font-size:13px; color:var(--ink2); padding:4px 4px 8px; }
+.legend span { display:inline-flex; align-items:center; gap:6px; }
+.key-line { width:16px; height:2px; display:inline-block; border-radius:1px; }
+.key-box { width:12px; height:12px; display:inline-block; border-radius:2px; }
+h2 { font-size:16px; margin:24px 0 8px; }
+table { width:100%; border-collapse:collapse; font-size:14px; background:var(--surface);
+  border:1px solid var(--border); border-radius:8px; overflow:hidden; }
+th, td { text-align:left; padding:8px 12px; border-bottom:1px solid var(--grid); }
+th { color:var(--ink2); font-weight:600; font-size:13px; }
+.warn { color: var(--crit); font-weight:700; margin-right:6px; }
+details { margin-top:16px; font-size:14px; color:var(--ink2); }
+.note { font-size:13px; color:var(--ink2); margin-top:20px; }
+.nav { display:flex; gap:16px; margin:0 0 16px; font-size:14px; }
+.nav a { color:var(--s1); text-decoration:none; padding-bottom:2px; }
+.nav a:hover { text-decoration:underline; }
+.nav a[aria-current="page"] { color:var(--ink); font-weight:600; border-bottom:2px solid var(--s1); }
+</style>
+</head>
+<body>
+<main>
+  <h1>SpaceSense</h1>
+  <p class="sub">Replay of public NASA SMAP/MSL spacecraft telemetry with precomputed LSTM output. This is a replay, not live data.</p>
+  
+  <nav class="nav" aria-label="Dashboard views">
+    <a href="index.html" aria-current="page">Replay</a>
+    <a href="console.html">Operations console</a>
+  </nav>
+  
+  <div class="filters">
+    <label>Channel <select id="channel" aria-label="Channel"></select></label>
+    <label>Speed
+      <select id="speed" aria-label="Replay speed">
+        <option value="100">Slow</option>
+        <option value="400">Medium</option>
+        <option value="1500" selected>Fast</option>
+        <option value="5000">Very fast</option>
+      </select>
+    </label>
+    <button id="play">Play</button>
+    <button id="reset">Show all</button>
+    <label><input type="checkbox" id="truth" checked> Show labeled anomalies</label>
+    <button id="theme" aria-label="Toggle light and dark theme">Theme</button>
+  </div>
+  <div class="filters">
+    <label style="flex:1">Step <input type="range" id="scrub" min="0" max="1" value="0" aria-label="Replay position"></label>
+  </div>
+
+  <div class="tiles">
+    <div class="tile"><div class="label">Replay step</div><div class="value" id="t-step">-</div></div>
+    <div class="tile"><div class="label">Alerts raised</div><div class="value" id="t-alerts">-</div></div>
+    <div class="tile"><div class="label">Labeled anomalies caught</div><div class="value" id="t-caught">-</div></div>
+    <div class="tile"><div class="label">False alarms</div><div class="value" id="t-fa">-</div></div>
+  </div>
+
+  <div class="card">
+    <div class="legend" id="legend"></div>
+    <div id="chart" role="img" aria-label="Telemetry, model prediction and smoothed error over the replay"></div>
+  </div>
+
+  <h2>Alerts</h2>
+  <table>
+    <thead><tr><th>Steps</th><th>Length</th><th>Result</th></tr></thead>
+    <tbody id="alerts"></tbody>
+  </table>
+
+  <details>
+    <summary>Values at the current step</summary>
+    <table style="margin-top:8px">
+      <thead><tr><th>Step</th><th>Real</th><th>Predicted</th><th>Smoothed error</th></tr></thead>
+      <tbody><tr id="readout"></tr></tbody>
+    </table>
+  </details>
+
+  <p class="note" id="method"></p>
+  <p class="note">Data: NASA SMAP and MSL telemetry (Hundman et al., KDD 2018), publicly released. Evaluation is event-level: an anomaly counts as caught if any alert overlaps it; an alert that overlaps nothing is a false alarm.</p>
+</main>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const css = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const overlap = (a0, a1, b0, b1) => a0 <= b1 && b0 <= a1;
+
+let DATA = null, XS = [], t = 0, pos = 0, playing = false, lastFrame = 0, lastDraw = 0;
+
+async function init() {
+  const idx = await (await fetch('data/index.json')).json();
+  const sel = $('channel');
+  for (const c of idx) {
+    const o = document.createElement('option');
+    o.value = c.channel;
+    o.textContent = c.channel + ' (' + c.spacecraft + ')';
+    sel.appendChild(o);
+  }
+  sel.addEventListener('change', () => loadChannel(sel.value));
+  await loadChannel(idx[0].channel);
+}
+
+async function loadChannel(ch) {
+  playing = false; $('play').textContent = 'Play';
+  DATA = await (await fetch('data/' + ch + '.json')).json();
+  const n = DATA.values.length;
+  XS = Array.from({ length: n }, (_, i) => i);
+  t = n - 1; pos = t;
+  $('scrub').max = n - 1;
+  $('method').textContent = 'Detector: ' + DATA.method.replace(/_/g, ' ') +
+    ' on ' + DATA.channel + ' (' + DATA.spacecraft + '), window ' + DATA.window + ' steps.';
+  buildLegend();
+  render();
+}
+
+function buildLegend() {
+  const items = [
+    ['line', '--s1', 'Real telemetry'], ['line', '--s2', 'Model prediction'],
+    ['line', '--s3', 'Smoothed error'], ['box', '--band', 'Labeled anomaly'], ['box', '--crit', 'Alert']
+  ];
+  const lg = $('legend'); lg.textContent = '';
+  for (const [kind, v, label] of items) {
+    const s = document.createElement('span');
+    const k = document.createElement('i');
+    k.className = kind === 'line' ? 'key-line' : 'key-box';
+    k.style.background = 'var(' + v + ')';
+    s.appendChild(k); s.appendChild(document.createTextNode(label));
+    lg.appendChild(s);
+  }
+}
+
+function band(x0, x1, color, y0, y1) {
+  return { type: 'rect', xref: 'x', yref: 'paper', x0, x1, y0, y1,
+           fillcolor: color, line: { width: 0 }, layer: 'below' };
+}
+
+function render() {
+  if (!DATA) return;
+  const n = DATA.values.length, e = Math.min(t, n - 1);
+  const xs = XS.slice(0, e + 1);
+  const lineColors = [css('--s1'), css('--s2'), css('--s3')];
+
+  const traces = [
+    { x: xs, y: DATA.values.slice(0, e + 1), name: 'Real', type: 'scatter', mode: 'lines',
+      line: { color: lineColors[0], width: 2 }, hovertemplate: '%{y:.3f}', xaxis: 'x', yaxis: 'y' },
+    { x: xs, y: DATA.pred.slice(0, e + 1), name: 'Predicted', type: 'scatter', mode: 'lines',
+      line: { color: lineColors[1], width: 2 }, hovertemplate: '%{y:.3f}', xaxis: 'x', yaxis: 'y' },
+    { x: xs, y: DATA.err.slice(0, e + 1), name: 'Smoothed error', type: 'scatter', mode: 'lines',
+      line: { color: lineColors[2], width: 2 }, hovertemplate: '%{y:.3f}', xaxis: 'x', yaxis: 'y2' }
+  ];
+
+  const shapes = [];
+  if ($('truth').checked)
+    for (const a of DATA.truth) if (a.start <= e) shapes.push(band(a.start, Math.min(a.end, e), css('--band'), 0, 1));
+  for (const f of DATA.flags) if (f.start <= e) {
+    const x1 = Math.min(f.end, e);
+    shapes.push(band(f.start, x1, css('--wash'), 0, 1));
+    shapes.push(band(f.start, x1, css('--crit'), 0, 0.035));
+  }
+
+  const font = { family: 'system-ui, -apple-system, "Segoe UI", sans-serif', color: css('--ink2'), size: 12 };
+  const axisCommon = { linecolor: css('--axis'), tickfont: { color: css('--muted') }, zeroline: false };
+  const layout = {
+    paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(0,0,0,0)', font, showlegend: false,
+    margin: { l: 64, r: 16, t: 8, b: 44 }, hovermode: 'x unified', shapes,
+    hoverlabel: { bgcolor: css('--surface'), bordercolor: css('--axis'), font: { color: css('--ink') } },
+    xaxis: { ...axisCommon, range: [0, n - 1], anchor: 'y2', showgrid: false, title: { text: 'Test step' },
+             showspikes: true, spikemode: 'across', spikecolor: css('--muted'), spikethickness: 1, spikedash: 'solid',
+             hoverformat: 'd' },
+    yaxis: { ...axisCommon, domain: [0.38, 1], gridcolor: css('--grid'), gridwidth: 1, title: { text: 'Scaled telemetry' } },
+    yaxis2: { ...axisCommon, domain: [0, 0.30], anchor: 'x', gridcolor: css('--grid'), gridwidth: 1, rangemode: 'tozero',
+              title: { text: 'Smoothed error' } }
+  };
+  Plotly.react('chart', traces, layout, { displayModeBar: false, responsive: true });
+  updateStats(e);
+}
+
+function updateStats(e) {
+  const n = DATA.values.length;
+  const flags = DATA.flags.filter(f => f.start <= e);
+  const truths = DATA.truth.filter(a => a.start <= e);
+  const hit = (a) => flags.some(f => overlap(f.start, Math.min(f.end, e), a.start, Math.min(a.end, e)));
+  const caught = truths.filter(hit).length;
+  const falseAlarms = flags.filter(f => !DATA.truth.some(a => overlap(f.start, f.end, a.start, a.end))).length;
+
+  $('t-step').textContent = e + ' / ' + (n - 1);
+  $('t-alerts').textContent = flags.length;
+  $('t-caught').textContent = caught + ' of ' + truths.length;
+  $('t-fa').textContent = falseAlarms;
+  $('scrub').value = e;
+
+  const rows = [];
+  for (const f of flags) {
+    const matches = DATA.truth.filter(a => overlap(f.start, f.end, a.start, a.end));
+    let msg;
+    if (matches.length) {
+      const d = f.start - matches[0].start;
+      msg = d >= 0 ? 'Overlaps a labeled anomaly, ' + d + ' steps after it began'
+                   : 'Overlaps a labeled anomaly, ' + (-d) + ' steps before its label began';
+    } else msg = 'No labeled anomaly here (false alarm)';
+    rows.push({ at: f.start, range: f.start + '-' + f.end, len: f.end - f.start + 1, msg, warn: true });
+  }
+  for (const a of DATA.truth) {
+    if (a.end <= e && !flags.some(f => overlap(f.start, f.end, a.start, a.end)))
+      rows.push({ at: a.start, range: a.start + '-' + a.end, len: a.end - a.start + 1,
+                  msg: 'Labeled anomaly missed (' + a.kind + ')', warn: false });
+  }
+  rows.sort((p, q) => p.at - q.at);
+  const tb = $('alerts'); tb.textContent = '';
+  for (const r of rows) {
+    const tr = document.createElement('tr');
+    const c1 = document.createElement('td'); c1.textContent = r.range;
+    const c2 = document.createElement('td'); c2.textContent = r.len + ' steps';
+    const c3 = document.createElement('td');
+    const ic = document.createElement('span'); ic.className = 'warn'; ic.textContent = r.warn ? '\u26A0' : '\u2716';
+    c3.appendChild(ic); c3.appendChild(document.createTextNode(r.msg));
+    tr.append(c1, c2, c3); tb.appendChild(tr);
+  }
+  if (!rows.length) {
+    const tr = document.createElement('tr'); const c = document.createElement('td');
+    c.colSpan = 3; c.textContent = 'No alerts yet.'; tr.appendChild(c); tb.appendChild(tr);
+  }
+
+  const ro = $('readout'); ro.textContent = '';
+  const fmt = (v) => (v === null || v === undefined) ? 'n/a' : v.toFixed(3);
+  for (const v of [String(e), fmt(DATA.values[e]), fmt(DATA.pred[e]), fmt(DATA.err[e])]) {
+    const td = document.createElement('td'); td.textContent = v; ro.appendChild(td);
+  }
+}
+
+function tick(now) {
+  if (!playing) return;
+  const n = DATA.values.length;
+  pos += Number($('speed').value) * ((now - lastFrame) / 1000);
+  lastFrame = now;
+  t = Math.min(n - 1, Math.floor(pos));
+  if (now - lastDraw > 50 || t >= n - 1) { render(); lastDraw = now; }
+  if (t >= n - 1) { playing = false; $('play').textContent = 'Play'; return; }
+  requestAnimationFrame(tick);
+}
+
+$('play').addEventListener('click', () => {
+  if (!DATA) return;
+  if (playing) { playing = false; $('play').textContent = 'Play'; return; }
+  if (t >= DATA.values.length - 1) { t = DATA.window; pos = t; }
+  playing = true; $('play').textContent = 'Pause';
+  lastFrame = performance.now(); requestAnimationFrame(tick);
+});
+$('reset').addEventListener('click', () => {
+  playing = false; $('play').textContent = 'Play';
+  t = DATA.values.length - 1; pos = t; render();
+});
+$('scrub').addEventListener('input', (ev) => {
+  playing = false; $('play').textContent = 'Play';
+  t = Number(ev.target.value); pos = t; render();
+});
+$('truth').addEventListener('change', render);
+$('theme').addEventListener('click', () => {
+  const dark = (document.documentElement.dataset.theme || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')) === 'dark';
+  document.documentElement.dataset.theme = dark ? 'light' : 'dark';
+  buildLegend(); render();
+});
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { buildLegend(); render(); });
+
+init();
+</script>
+</body>
+</html>

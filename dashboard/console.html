@@ -1,0 +1,527 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SpaceSense: operations console (replay)</title>
+<script src="https://cdn.plot.ly/plotly-2.35.2.min.js" charset="utf-8"></script>
+<style>
+:root {
+  color-scheme: light;
+  --page:#f9f9f7; --surface:#fcfcfb; --ink:#0b0b0b; --ink2:#52514e; --muted:#898781;
+  --grid:#e1e0d9; --axis:#c3c2b7; --border:rgba(11,11,11,.10);
+  --s1:#2a78d6; --s2:#eb6834; --s3:#6250d6;
+  --good:#0ca30c; --crit:#d03b3b;
+  --band:rgba(137,135,129,.22); --wash:rgba(208,59,59,.12); --selwash:rgba(42,120,214,.08);
+}
+@media (prefers-color-scheme: dark) {
+  :root:where(:not([data-theme="light"])) {
+    color-scheme: dark;
+    --page:#0d0d0d; --surface:#1a1a19; --ink:#f0efec; --ink2:#c3c2b7; --muted:#898781;
+    --grid:#2c2c2a; --axis:#383835; --border:rgba(255,255,255,.10);
+    --s1:#3987e5; --s2:#d95926; --s3:#9085e9;
+    --band:rgba(195,194,183,.20); --wash:rgba(208,59,59,.18); --selwash:rgba(57,135,229,.14);
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --page:#0d0d0d; --surface:#1a1a19; --ink:#f0efec; --ink2:#c3c2b7; --muted:#898781;
+  --grid:#2c2c2a; --axis:#383835; --border:rgba(255,255,255,.10);
+  --s1:#3987e5; --s2:#d95926; --s3:#9085e9;
+  --band:rgba(195,194,183,.20); --wash:rgba(208,59,59,.18); --selwash:rgba(57,135,229,.14);
+}
+* { box-sizing: border-box; }
+body { margin:0; background:var(--page); color:var(--ink);
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif; line-height:1.45; }
+main { max-width:1200px; margin:0 auto; padding:0 16px 56px; }
+.top { position:sticky; top:0; z-index:5; background:var(--page); padding:12px 0;
+  border-bottom:1px solid var(--grid); margin-bottom:16px; }
+.brand { display:flex; flex-wrap:wrap; align-items:baseline; gap:10px; margin-bottom:10px; }
+h1 { font-size:20px; margin:0; }
+.badge { font-size:12px; font-weight:600; letter-spacing:.04em; border:1px solid var(--axis);
+  border-radius:4px; padding:1px 6px; color:var(--ink2); }
+.sub { color:var(--ink2); font-size:13px; }
+.controls { display:flex; flex-wrap:wrap; gap:10px 14px; align-items:center; }
+.controls label { font-size:13px; color:var(--ink2); display:flex; gap:6px; align-items:center; }
+select, button { font:inherit; font-size:14px; color:var(--ink); background:var(--surface);
+  border:1px solid var(--border); border-radius:6px; padding:6px 10px; cursor:pointer; }
+select:hover, button:hover { border-color:var(--muted); }
+input[type=range] { flex:1; min-width:180px; accent-color:var(--s1); }
+.clock { font-size:13px; color:var(--ink2); min-width:170px; }
+h2 { font-size:16px; margin:28px 0 10px; }
+.tiles { display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:12px; }
+.tile { background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:12px 14px; }
+.tile .label { font-size:13px; color:var(--ink2); }
+.tile .value { font-size:26px; font-weight:600; }
+.fleet { display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:12px; }
+.fcard { text-align:left; background:var(--surface); border:1px solid var(--border);
+  border-radius:8px; padding:12px; color:var(--ink); }
+.fcard.sel { border-color:var(--s1); box-shadow:0 0 0 1px var(--s1); }
+.fhead { display:flex; align-items:baseline; gap:8px; font-size:14px; }
+.fhead .badge-status { margin-left:auto; }
+.muted { color:var(--muted); font-size:13px; }
+.badge-status { font-size:13px; color:var(--ink); white-space:nowrap; }
+.badge-status .ic { margin-right:5px; font-weight:700; }
+.spark { width:100%; height:76px; display:block; margin:8px 0 4px; }
+.fmeta { display:flex; justify-content:space-between; font-size:12px; color:var(--ink2); }
+.card { background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:12px 12px 8px; }
+.dhead { display:flex; flex-wrap:wrap; align-items:baseline; gap:6px 14px; padding:0 4px 6px; }
+.dhead strong { font-size:16px; }
+.readout { font-size:13px; color:var(--ink2); }
+.legend { display:flex; flex-wrap:wrap; gap:16px; font-size:13px; color:var(--ink2); padding:2px 4px 6px; }
+.legend span { display:inline-flex; align-items:center; gap:6px; }
+.key-line { width:16px; height:2px; display:inline-block; border-radius:1px; }
+.key-box { width:12px; height:12px; display:inline-block; border-radius:2px; }
+#chart { width:100%; height:460px; }
+table { width:100%; border-collapse:collapse; font-size:14px; background:var(--surface);
+  border:1px solid var(--border); border-radius:8px; overflow:hidden; }
+th, td { text-align:left; padding:8px 12px; border-bottom:1px solid var(--grid); }
+th { color:var(--ink2); font-weight:600; font-size:13px; }
+td.num, th.num { text-align:right; }
+tbody tr[tabindex] { cursor:pointer; }
+tbody tr[tabindex]:hover td { background:var(--page); }
+tr.sel td { background:var(--selwash); }
+tr.total td { font-weight:600; }
+.ic { font-weight:700; }
+.two { display:grid; grid-template-columns:repeat(auto-fit,minmax(320px,1fr)); gap:12px; }
+.panel { background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:14px 16px; font-size:14px; }
+.panel h3 { margin:0 0 8px; font-size:14px; }
+.panel ul { margin:0; padding-left:18px; color:var(--ink2); }
+.panel li { margin-bottom:4px; }
+.head-row { display:flex; align-items:center; gap:12px; }
+.head-row h2 { margin-right:auto; }
+[data-eval] { display:none; }
+body.eval [data-eval] { display:revert; }
+.note { font-size:13px; color:var(--ink2); margin-top:20px; }
+.nav { display:flex; gap:16px; font-size:14px; margin-left:auto; }
+.nav a { color:var(--s1); text-decoration:none; padding-bottom:2px; }
+.nav a:hover { text-decoration:underline; }
+.nav a[aria-current="page"] { color:var(--ink); font-weight:600; border-bottom:2px solid var(--s1); }
+</style>
+</head>
+<body>
+<main>
+  <header class="top">
+    <div class="brand">
+      <h1>SpaceSense</h1>
+      <span class="badge">REPLAY MODE</span>
+      <span class="sub">Public NASA SMAP/MSL telemetry with precomputed model output. Not live data.</span>
+            <nav class="nav" aria-label="Dashboard views">
+        <a href="index.html">Replay</a>
+        <a href="console.html" aria-current="page">Operations console</a>
+      </nav>
+    </div>
+    <div class="controls">
+      <button id="play" type="button">Play</button>
+      <button id="restart" type="button">Restart</button>
+      <label>Speed
+        <select id="speed" aria-label="Replay speed">
+          <option value="100">Slow</option>
+          <option value="400" selected>Medium</option>
+          <option value="1500">Fast</option>
+          <option value="5000">Very fast</option>
+        </select>
+      </label>
+      <label style="flex:1">Replay position <input type="range" id="scrub" min="0" max="1" value="0" aria-label="Replay position"></label>
+      <span class="clock" id="clock">-</span>
+      <label><input type="checkbox" id="eval"> Evaluation view (shows labels)</label>
+      <button id="theme" type="button" aria-label="Toggle light and dark theme">Theme</button>
+    </div>
+  </header>
+
+  <section class="tiles" aria-label="Summary">
+    <div class="tile"><div class="label">Channels monitored</div><div class="value" id="k-fleet">-</div></div>
+    <div class="tile"><div class="label">Channels in alert now</div><div class="value" id="k-now">-</div></div>
+    <div class="tile"><div class="label">Alerts raised so far</div><div class="value" id="k-total">-</div></div>
+    <div class="tile" data-eval><div class="label">Labeled anomalies caught</div><div class="value" id="k-caught">-</div></div>
+    <div class="tile" data-eval><div class="label">False alarms</div><div class="value" id="k-fa">-</div></div>
+  </section>
+
+  <h2>Fleet status</h2>
+  <div class="fleet" id="fleet"></div>
+  <p class="muted" style="margin:8px 0 0">Each card shows the last 800 steps: telemetry (blue), smoothed model error (violet), alerts shaded red. Select a card for detail.</p>
+
+  <h2>Channel detail</h2>
+  <div class="card">
+    <div class="dhead">
+      <strong id="d-title">-</strong>
+      <span class="badge-status" id="d-stat"></span>
+      <span class="readout" id="d-read"></span>
+    </div>
+    <div class="legend">
+      <span><i class="key-line" style="background:var(--s1)"></i>Real telemetry</span>
+      <span><i class="key-line" style="background:var(--s2)"></i>Model prediction</span>
+      <span><i class="key-line" style="background:var(--s3)"></i>Smoothed error</span>
+      <span><i class="key-box" style="background:var(--crit)"></i>Alert</span>
+      <span data-eval><i class="key-box" style="background:var(--band)"></i>Labeled anomaly</span>
+    </div>
+    <div id="chart" role="img" aria-label="Telemetry, model prediction and smoothed error for the selected channel"></div>
+  </div>
+
+  <div class="head-row"><h2>Incident log</h2><button id="csv" type="button">Download CSV</button></div>
+  <table>
+    <thead><tr>
+      <th>Incident</th><th>Channel</th><th class="num">Started at step</th><th class="num">Length</th><th>State</th>
+      <th data-eval>Evaluation</th>
+    </tr></thead>
+    <tbody id="incidents"></tbody>
+  </table>
+
+  <section data-eval>
+    <h2>Detection performance (evaluation view, as of the replay position)</h2>
+    <table>
+      <thead><tr>
+        <th>Channel</th><th class="num">Labeled anomalies</th><th class="num">Caught</th><th class="num">Missed</th>
+        <th class="num">False alarms</th><th class="num">False alarms per 10k steps</th><th class="num">Mean first-alert delay (steps)</th>
+      </tr></thead>
+      <tbody id="perf"></tbody>
+    </table>
+  </section>
+
+  <h2>System and method</h2>
+  <div class="two">
+    <div class="panel">
+      <h3>How it works</h3>
+      <ul>
+        <li><b>Data:</b> NASA SMAP and MSL telemetry with JPL-labeled anomalies (Hundman et al., KDD 2018). Ten development channels are shown here.</li>
+        <li><b>Model:</b> an LSTM (2 layers, 80 units, dropout 0.3) reads the last 250 steps of telemetry and command columns and predicts the next telemetry value. One model per channel, trained on that channel's training file.</li>
+        <li><b>Detection:</b> absolute prediction error, smoothed (EWMA span 105). The threshold is recomputed per trailing window of 2,100 steps (stride 70) as mean plus z standard deviations, z from 2.5 to 10. No pruning in this view. Alerts within 50 steps of each other are merged.</li>
+        <li><b>Scoring:</b> event-level. An anomaly counts as caught if any alert overlaps it; an alert that overlaps no labeled anomaly is a false alarm.</li>
+      </ul>
+    </div>
+    <div class="panel">
+      <h3>Known limitations</h3>
+      <ul>
+        <li>These are development channels whose labels were examined while building the method. They are not final benchmark numbers.</li>
+        <li>Many false alarms are short blips (1 to 10 steps) far from any labeled anomaly.</li>
+        <li>Event-level scoring is generous for long anomalies: one overlapping alert counts the whole event as caught.</li>
+        <li>Some anomalies are not detected at all (for example two of three on P-1).</li>
+        <li>This is a replay of public data. There is no connection to any spacecraft, and it is not a NASA project.</li>
+      </ul>
+    </div>
+  </div>
+  <p class="note" id="method"></p>
+</main>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const css = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const ov = (a0, a1, b0, b1) => a0 <= b1 && b0 <= a1;
+const NS = 'http://www.w3.org/2000/svg';
+const SW = 240, VH = 44, EH = 26, GAP = 6, WIN = 800;
+const S = { clock: 0, pos: 0, playing: false, last: 0, drawn: 0, selected: null, eval: false };
+let CH = [], ALL = [], MAXN = 1, SIG = '';
+
+const ST = {
+  warm:  ['…', 'Warm-up',     '--muted'],
+  ok:    ['✓', 'Nominal',     '--good'],
+  alert: ['⚠', 'Alert',       '--crit'],
+  end:   ['○', 'End of data', '--muted']
+};
+
+function setBadge(el, key) {
+  const [icon, label, v] = ST[key];
+  el.textContent = '';
+  const i = document.createElement('span');
+  i.className = 'ic'; i.style.color = 'var(' + v + ')'; i.textContent = icon;
+  el.append(i, document.createTextNode(label));
+}
+
+const cur = (ch) => Math.min(S.clock, ch.n - 1);
+
+function status(ch, e) {
+  if (e < ch.window) return 'warm';
+  if (ch.flags.some((f) => f.start <= e && e <= f.end)) return 'alert';
+  if (e >= ch.n - 1) return 'end';
+  return 'ok';
+}
+
+function prep(d) {
+  const nn = d.err.filter((v) => v !== null);
+  return {
+    id: d.channel, sc: d.spacecraft, n: d.values.length, window: d.window,
+    values: d.values, pred: d.pred, err: d.err, flags: d.flags, truth: d.truth, method: d.method,
+    xs: Array.from({ length: d.values.length }, (_, i) => i),
+    vmin: Math.min(...d.values), vmax: Math.max(...d.values), emax: Math.max(...nn)
+  };
+}
+
+async function init() {
+  const idx = await (await fetch('data/index.json')).json();
+  CH = await Promise.all(idx.map(async (i) => prep(await (await fetch('data/' + i.channel + '.json')).json())));
+  MAXN = Math.max(...CH.map((c) => c.n));
+  $('scrub').max = MAXN - 1;
+  S.selected = CH[0].id;
+  ALL = [];
+  for (const ch of CH) for (const f of ch.flags) ALL.push({ ch, f });
+  ALL.sort((a, b) => a.f.start - b.f.start || a.ch.id.localeCompare(b.ch.id));
+  ALL.forEach((x, i) => { x.id = 'INC-' + String(i + 1).padStart(3, '0'); });
+  $('method').textContent = 'Detector in this view: ' + CH[0].method.replace(/_/g, ' ') + '.';
+  buildFleet();
+  S.clock = 0; S.pos = 0;
+  draw();
+  play();
+}
+
+function mkLine(v) {
+  const p = document.createElementNS(NS, 'polyline');
+  p.setAttribute('fill', 'none'); p.setAttribute('stroke', 'var(' + v + ')');
+  p.setAttribute('stroke-width', '2'); p.setAttribute('stroke-linejoin', 'round');
+  p.setAttribute('vector-effect', 'non-scaling-stroke');
+  return p;
+}
+
+function buildFleet() {
+  const root = $('fleet'); root.textContent = '';
+  for (const ch of CH) {
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = 'fcard';
+    const head = document.createElement('div'); head.className = 'fhead';
+    const nm = document.createElement('strong'); nm.textContent = ch.id;
+    const sc = document.createElement('span'); sc.className = 'muted'; sc.textContent = ch.sc;
+    const stat = document.createElement('span'); stat.className = 'badge-status';
+    head.append(nm, sc, stat);
+    const svg = document.createElementNS(NS, 'svg');
+    svg.setAttribute('viewBox', '0 0 ' + SW + ' ' + (VH + GAP + EH));
+    svg.setAttribute('preserveAspectRatio', 'none');
+    svg.setAttribute('class', 'spark'); svg.setAttribute('aria-hidden', 'true');
+    const shade = document.createElementNS(NS, 'g');
+    const vl = mkLine('--s1'), el = mkLine('--s3');
+    el.setAttribute('transform', 'translate(0,' + (VH + GAP) + ')');
+    svg.append(shade, vl, el);
+    const meta = document.createElement('div'); meta.className = 'fmeta';
+    const m1 = document.createElement('span'), m2 = document.createElement('span');
+    meta.append(m1, m2);
+    b.append(head, svg, meta);
+    b.addEventListener('click', () => { S.selected = ch.id; draw(); });
+    root.appendChild(b);
+    ch.ui = { b, stat, shade, vl, el, m1, m2 };
+  }
+}
+
+function pts(arr, a, b, start, lo, hi, h) {
+  const step = Math.max(1, Math.ceil((b - a + 1) / 160)), out = [];
+  for (let i = a; i <= b; i += step) {
+    const v = arr[i];
+    if (v === null || v === undefined) continue;
+    const x = ((i - start) / WIN) * SW;
+    const y = h - 2 - ((v - lo) / ((hi - lo) || 1)) * (h - 4);
+    out.push(x.toFixed(1) + ',' + y.toFixed(1));
+  }
+  return out.join(' ');
+}
+
+function updateFleet() {
+  for (const ch of CH) {
+    const e = cur(ch), u = ch.ui, start = e - WIN;
+    setBadge(u.stat, status(ch, e));
+    u.vl.setAttribute('points', pts(ch.values, Math.max(0, start), e, start, ch.vmin, ch.vmax, VH));
+    u.el.setAttribute('points', pts(ch.err, Math.max(0, start), e, start, 0, ch.emax, EH));
+    u.shade.textContent = '';
+    for (const f of ch.flags) {
+      if (f.start > e || f.end < start) continue;
+      const x0 = ((Math.max(f.start, start) - start) / WIN) * SW;
+      const x1 = ((Math.min(f.end, e) - start) / WIN) * SW;
+      const r = document.createElementNS(NS, 'rect');
+      r.setAttribute('x', x0.toFixed(1)); r.setAttribute('y', '0');
+      r.setAttribute('width', Math.max(2, x1 - x0).toFixed(1));
+      r.setAttribute('height', String(VH + GAP + EH));
+      r.setAttribute('fill', 'var(--crit)'); r.setAttribute('fill-opacity', '0.18');
+      u.shade.appendChild(r);
+    }
+    const n = ch.flags.filter((f) => f.start <= e).length;
+    u.m1.textContent = 'Step ' + e + ' / ' + (ch.n - 1);
+    u.m2.textContent = n + (n === 1 ? ' alert' : ' alerts');
+    u.b.setAttribute('aria-pressed', ch.id === S.selected ? 'true' : 'false');
+    u.b.classList.toggle('sel', ch.id === S.selected);
+  }
+}
+
+function perf(ch) {
+  const e = cur(ch);
+  const fl = ch.flags.filter((f) => f.start <= e);
+  const tr = ch.truth.filter((a) => a.start <= e);
+  const hits = (a) => fl.filter((f) => ov(f.start, Math.min(f.end, e), a.start, Math.min(a.end, e)));
+  const caught = tr.filter((a) => hits(a).length > 0);
+  const delays = caught.map((a) => Math.max(0, Math.min(...hits(a).map((f) => f.start)) - a.start));
+  const fa = fl.filter((f) => !ch.truth.some((a) => ov(f.start, f.end, a.start, a.end))).length;
+  const missed = tr.filter((a) => a.end <= e && hits(a).length === 0).length;
+  return { labeled: tr.length, caught: caught.length, missed, fa, steps: e + 1, delays };
+}
+
+function updateTiles() {
+  let inAlert = 0, total = 0, caught = 0, labeled = 0, fa = 0;
+  for (const ch of CH) {
+    const e = cur(ch);
+    if (status(ch, e) === 'alert') inAlert++;
+    total += ch.flags.filter((f) => f.start <= e).length;
+    const p = perf(ch); caught += p.caught; labeled += p.labeled; fa += p.fa;
+  }
+  $('k-fleet').textContent = CH.length;
+  $('k-now').textContent = inAlert;
+  $('k-total').textContent = total;
+  $('k-caught').textContent = caught + ' of ' + labeled;
+  $('k-fa').textContent = fa;
+}
+
+function evalText(x) {
+  const ms = x.ch.truth.filter((a) => ov(x.f.start, x.f.end, a.start, a.end));
+  if (!ms.length) return 'No label here (false alarm)';
+  const d = x.f.start - ms[0].start;
+  return d >= 0 ? 'Matches a labeled anomaly, ' + d + ' steps after the label began'
+                : 'Matches a labeled anomaly, ' + (-d) + ' steps before the label began';
+}
+
+function updateIncidents() {
+  const vis = ALL.filter((x) => x.f.start <= cur(x.ch));
+  const open = (x) => cur(x.ch) <= x.f.end;
+  const sig = vis.map((x) => x.id + (open(x) ? 'o' : 'c')).join(',') + '|' + S.eval + '|' + S.selected;
+  if (sig === SIG) return;
+  SIG = sig;
+  const tb = $('incidents'); tb.textContent = '';
+  if (!vis.length) {
+    const tr = document.createElement('tr'), td = document.createElement('td');
+    td.colSpan = 6; td.textContent = 'No alerts yet.'; tr.appendChild(td); tb.appendChild(tr);
+    return;
+  }
+  for (const x of vis.slice().reverse()) {
+    const tr = document.createElement('tr');
+    tr.tabIndex = 0;
+    if (x.ch.id === S.selected) tr.className = 'sel';
+    const cell = (txt, cls) => { const td = document.createElement('td'); if (cls) td.className = cls; td.textContent = txt; return td; };
+    const st = document.createElement('td');
+    const ic = document.createElement('span'); ic.className = 'ic';
+    ic.style.color = open(x) ? 'var(--crit)' : 'var(--muted)';
+    ic.textContent = open(x) ? '⚠' : '✓';
+    st.append(ic, document.createTextNode((open(x) ? 'Open' : 'Closed')));
+    st.firstChild.style.marginRight = '5px';
+    const ev = cell(evalText(x)); ev.setAttribute('data-eval', '');
+    tr.append(cell(x.id), cell(x.ch.id + ' (' + x.ch.sc + ')'), cell(String(x.f.start), 'num'),
+              cell((x.f.end - x.f.start + 1) + ' steps', 'num'), st, ev);
+    const pick = () => { S.selected = x.ch.id; draw(); };
+    tr.addEventListener('click', pick);
+    tr.addEventListener('keydown', (e) => { if (e.key === 'Enter') pick(); });
+    tb.appendChild(tr);
+  }
+}
+
+function updatePerf() {
+  if (!S.eval) return;
+  const tb = $('perf'); tb.textContent = '';
+  let T = { labeled: 0, caught: 0, missed: 0, fa: 0, steps: 0, delays: [] };
+  const row = (name, p, cls) => {
+    const tr = document.createElement('tr'); if (cls) tr.className = cls;
+    const per10k = p.steps ? (p.fa / p.steps) * 10000 : 0;
+    const md = p.delays.length ? (p.delays.reduce((a, b) => a + b, 0) / p.delays.length).toFixed(0) : 'n/a';
+    [name, p.labeled, p.caught, p.missed, p.fa, per10k.toFixed(2), md].forEach((v, i) => {
+      const td = document.createElement('td'); if (i) td.className = 'num'; td.textContent = String(v); tr.appendChild(td);
+    });
+    tb.appendChild(tr);
+  };
+  for (const ch of CH) {
+    const p = perf(ch);
+    row(ch.id + ' (' + ch.sc + ')', p);
+    T.labeled += p.labeled; T.caught += p.caught; T.missed += p.missed; T.fa += p.fa;
+    T.steps += p.steps; T.delays = T.delays.concat(p.delays);
+  }
+  row('All channels', T, 'total');
+}
+
+function band(x0, x1, color, y0, y1) {
+  return { type: 'rect', xref: 'x', yref: 'paper', x0, x1, y0, y1, fillcolor: color, line: { width: 0 }, layer: 'below' };
+}
+
+function updateDetail() {
+  const ch = CH.find((c) => c.id === S.selected);
+  const e = cur(ch);
+  $('d-title').textContent = ch.id + ' (' + ch.sc + ')';
+  setBadge($('d-stat'), status(ch, e));
+  const fmt = (v) => (v === null || v === undefined) ? 'n/a' : v.toFixed(3);
+  $('d-read').textContent = 'Step ' + e + ' of ' + (ch.n - 1) + ' | real ' + fmt(ch.values[e]) +
+    ' | predicted ' + fmt(ch.pred[e]) + ' | smoothed error ' + fmt(ch.err[e]);
+  if (typeof Plotly === 'undefined') return;
+
+  const xs = ch.xs.slice(0, e + 1);
+  const mk = (y, name, color, ya) => ({ x: xs, y: y.slice(0, e + 1), name, type: 'scatter', mode: 'lines',
+    line: { color, width: 2 }, hovertemplate: '%{y:.3f}', xaxis: 'x', yaxis: ya });
+  const traces = [
+    mk(ch.values, 'Real', css('--s1'), 'y'),
+    mk(ch.pred, 'Predicted', css('--s2'), 'y'),
+    mk(ch.err, 'Smoothed error', css('--s3'), 'y2')
+  ];
+  const shapes = [];
+  if (S.eval) for (const a of ch.truth) if (a.start <= e) shapes.push(band(a.start, Math.min(a.end, e), css('--band'), 0, 1));
+  for (const f of ch.flags) if (f.start <= e) {
+    const x1 = Math.min(f.end, e);
+    shapes.push(band(f.start, x1, css('--wash'), 0, 1));
+    shapes.push(band(f.start, x1, css('--crit'), 0, 0.035));
+  }
+  const font = { family: 'system-ui, -apple-system, "Segoe UI", sans-serif', color: css('--ink2'), size: 12 };
+  const ax = { linecolor: css('--axis'), tickfont: { color: css('--muted') }, zeroline: false };
+  const layout = {
+    paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(0,0,0,0)', font, showlegend: false,
+    margin: { l: 64, r: 16, t: 8, b: 44 }, hovermode: 'x unified', shapes,
+    hoverlabel: { bgcolor: css('--surface'), bordercolor: css('--axis'), font: { color: css('--ink') } },
+    xaxis: { ...ax, range: [0, ch.n - 1], anchor: 'y2', showgrid: false, title: { text: 'Test step' },
+             showspikes: true, spikemode: 'across', spikecolor: css('--muted'), spikethickness: 1, spikedash: 'solid', hoverformat: 'd' },
+    yaxis: { ...ax, domain: [0.38, 1], gridcolor: css('--grid'), gridwidth: 1, title: { text: 'Scaled telemetry' } },
+    yaxis2: { ...ax, domain: [0, 0.30], anchor: 'x', gridcolor: css('--grid'), gridwidth: 1, rangemode: 'tozero',
+              title: { text: 'Smoothed error' } }
+  };
+  Plotly.react('chart', traces, layout, { displayModeBar: false, responsive: true });
+}
+
+function updateClock() {
+  $('clock').textContent = 'Replay step ' + S.clock + ' / ' + (MAXN - 1);
+  $('scrub').value = S.clock;
+  $('play').textContent = S.playing ? 'Pause' : 'Play';
+}
+
+function draw() {
+  document.body.classList.toggle('eval', S.eval);
+  updateTiles(); updateFleet(); updateIncidents(); updatePerf(); updateDetail(); updateClock();
+}
+
+function loop(now) {
+  if (!S.playing) return;
+  S.pos += Number($('speed').value) * ((now - S.last) / 1000);
+  S.last = now;
+  S.clock = Math.min(MAXN - 1, Math.floor(S.pos));
+  const done = S.clock >= MAXN - 1;
+  if (done) S.playing = false;
+  if (now - S.drawn > 90 || done) { draw(); S.drawn = now; }
+  if (S.playing) requestAnimationFrame(loop);
+}
+
+function play() {
+  if (S.clock >= MAXN - 1) { S.clock = 0; S.pos = 0; }
+  S.playing = true; S.last = performance.now(); S.drawn = 0;
+  updateClock();
+  requestAnimationFrame(loop);
+}
+
+$('play').addEventListener('click', () => { if (S.playing) { S.playing = false; updateClock(); } else play(); });
+$('restart').addEventListener('click', () => { S.clock = 0; S.pos = 0; S.playing = false; draw(); play(); });
+$('scrub').addEventListener('input', (ev) => { S.playing = false; S.clock = Number(ev.target.value); S.pos = S.clock; draw(); });
+$('eval').addEventListener('change', (ev) => { S.eval = ev.target.checked; SIG = ''; draw(); });
+$('theme').addEventListener('click', () => {
+  const dark = (document.documentElement.dataset.theme || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')) === 'dark';
+  document.documentElement.dataset.theme = dark ? 'light' : 'dark';
+  draw();
+});
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', draw);
+$('csv').addEventListener('click', () => {
+  const vis = ALL.filter((x) => x.f.start <= cur(x.ch));
+  const rows = [['incident', 'channel', 'spacecraft', 'start_step', 'end_step', 'length', 'state', 'evaluation']];
+  for (const x of vis) rows.push([x.id, x.ch.id, x.ch.sc, x.f.start, x.f.end, x.f.end - x.f.start + 1,
+    cur(x.ch) <= x.f.end ? 'open' : 'closed', S.eval ? evalText(x) : '']);
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([rows.map((r) => r.join(',')).join('\n')], { type: 'text/csv' }));
+  a.download = 'spacesense_incidents.csv'; a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+});
+
+init();
+</script>
+</body>
+</html>

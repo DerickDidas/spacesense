@@ -101,6 +101,7 @@ def main(chan: str, epochs: int, patience: int):
     out = FIG_DIR / f"{chan}_lstm.png"
     fig.savefig(out, dpi=150)
     print("saved", out)
+    plt.close(fig)
 
 
 if __name__ == "__main__":

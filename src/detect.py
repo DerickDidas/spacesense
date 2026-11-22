@@ -57,3 +57,30 @@ def detect(err, span: int = 30, min_drop: float = 0.13, merge_gap: int = 50):
     kept = prune(e, raw, min_drop) if min_drop is not None else raw
     kept = [(s + WINDOW, t + WINDOW) for s, t in kept]
     return merge_close(kept, merge_gap), e, eps, z, len(raw)
+
+
+def detect_windowed(err, span: int = 105, batch: int = 70, window: int = 2100,
+                    min_drop: float | None = 0.13, merge_gap: int = 50):
+    """Trailing-window threshold like the original: for each batch, compute the
+    threshold (and pruning) on the last `window` smoothed errors, and keep
+    only detections that fall in the newest batch."""
+    e = smooth(err, span)
+    n = len(e)
+    flags = np.zeros(n, dtype=bool)
+    end = 0
+    while end < n:
+        end = min(end + batch, n)
+        start = max(0, end - window)
+        w = e[start:end]
+        eps, _ = choose_threshold(w)
+        seqs = flags_to_sequences(w >= eps)
+        if min_drop is not None:
+            seqs = prune(w, seqs, min_drop)
+        newest = max(end - batch, start) - start
+        for s, t in seqs:
+            lo = max(s, newest)
+            if lo <= t:
+                flags[start + lo : start + t + 1] = True
+    raw = flags_to_sequences(flags)
+    kept = [(s + WINDOW, t + WINDOW) for s, t in raw]
+    return merge_close(kept, merge_gap), e, float("nan"), float("nan"), len(raw)

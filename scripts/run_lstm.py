@@ -11,11 +11,16 @@ sys.path.insert(0, str(ROOT / "scripts"))
 import train_one
 from src.config import METRICS_CSV, PRED_DIR, ensure_dirs
 from src.data import load_channel, load_labels, spacecraft_of, true_anomalies
-from src.detect import detect
+from src.detect import detect, detect_windowed
 from src.evaluate import false_alarms_per_10k, score_events
 
 CHANNELS = ["P-1", "E-2", "A-2", "T-1", "D-1", "M-1", "M-6", "P-10", "F-7", "C-1"]
-VARIANTS = {"lstm_pruned": 0.13, "lstm_no_prune": None}
+VARIANTS = {
+    "lstm_pruned": lambda err: detect(err, min_drop=0.13),
+    "lstm_no_prune": lambda err: detect(err, min_drop=None),
+    "lstm_win_pruned": lambda err: detect_windowed(err, min_drop=0.13),
+    "lstm_win_no_prune": lambda err: detect_windowed(err, min_drop=None),
+}
 COLS = ["run_id", "channel", "spacecraft", "model", "n_anomalies", "n_flagged",
         "tp", "fp", "fn", "precision", "recall", "f1", "fa_per_10k", "merge_gap"]
 
@@ -30,8 +35,8 @@ for chan in CHANNELS:
     err = np.load(PRED_DIR / f"{chan}.npz")["err"]
     _, test = load_channel(chan)
     truth = [(s, t) for s, t, _ in true_anomalies(labels, chan)]
-    for name, min_drop in VARIANTS.items():
-        seqs, *_ = detect(err, min_drop=min_drop)
+    for name, fn in VARIANTS.items():
+        seqs, *_ = fn(err)
         sc = score_events(seqs, truth)
         rows.append({
             "run_id": run_id, "channel": chan, "spacecraft": spacecraft_of(labels, chan),

@@ -1,0 +1,60 @@
+A-5
+Traceback (most recent call last):
+  File "f:\SpaceSense\scripts\train_all.py", line 24, in <module>
+    train_one.main(c, 35, 5)
+    ~~~~~~~~~~~~~~^^^^^^^^^^
+  File "F:\SpaceSense\scripts\train_one.py", line 63, in main
+    va = vt / len(val_ds)
+         ~~~^~~~~~~~~~~~~
+ZeroDivisionError: division by zero
+
+A-6
+Traceback (most recent call last):
+  File "f:\SpaceSense\scripts\train_all.py", line 24, in <module>
+    train_one.main(c, 35, 5)
+    ~~~~~~~~~~~~~~^^^^^^^^^^
+  File "F:\SpaceSense\scripts\train_one.py", line 63, in main
+    va = vt / len(val_ds)
+         ~~~^~~~~~~~~~~~~
+ZeroDivisionError: division by zero
+
+A-8
+Traceback (most recent call last):
+  File "f:\SpaceSense\scripts\train_all.py", line 24, in <module>
+    train_one.main(c, 35, 5)
+    ~~~~~~~~~~~~~~^^^^^^^^^^
+  File "F:\SpaceSense\scripts\train_one.py", line 63, in main
+    va = vt / len(val_ds)
+         ~~~^~~~~~~~~~~~~
+ZeroDivisionError: division by zero
+
+A-9
+Traceback (most recent call last):
+  File "f:\SpaceSense\scripts\train_all.py", line 24, in <module>
+    train_one.main(c, 35, 5)
+    ~~~~~~~~~~~~~~^^^^^^^^^^
+  File "F:\SpaceSense\scripts\train_one.py", line 63, in main
+    va = vt / len(val_ds)
+         ~~~^~~~~~~~~~~~~
+ZeroDivisionError: division by zero
+
+C-2
+Traceback (most recent call last):
+  File "f:\SpaceSense\scripts\train_all.py", line 24, in <module>
+    train_one.main(c, 35, 5)
+    ~~~~~~~~~~~~~~^^^^^^^^^^
+  File "F:\SpaceSense\scripts\train_one.py", line 63, in main
+    va = vt / len(val_ds)
+         ~~~^~~~~~~~~~~~~
+ZeroDivisionError: division by zero
+
+D-12
+Traceback (most recent call last):
+  File "f:\SpaceSense\scripts\train_all.py", line 24, in <module>
+    train_one.main(c, 35, 5)
+    ~~~~~~~~~~~~~~^^^^^^^^^^
+  File "F:\SpaceSense\scripts\train_one.py", line 63, in main
+    va = vt / len(val_ds)
+         ~~~^~~~~~~~~~~~~
+ZeroDivisionError: division by zero
+

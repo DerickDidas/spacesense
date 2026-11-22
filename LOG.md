@@ -56,3 +56,28 @@ Short notes after each phase: what worked, what broke, what I decided, what is n
 - Isolation Forest flags too many sequences (up to ~41 false alarms per 10k steps), and missed M-1's long anomaly while flagging the first half of the test file.
 - Caveat: 16 anomalies is too few for stable percentages; rerun on all channels later.
 - Target for the LSTM: keep high recall with far fewer false alarms, especially on contextual anomalies.
+
+
+## Pause point (2026-11-22): final-set training not started yet
+
+State:
+- Dev set = 10 channels (P-1, E-2, A-2, T-1, D-1, M-1, M-6, P-10, F-7, C-1). Labels already looked at, so they are NOT a clean test set.
+- Final set = the other channels in labeled_anomalies.csv (about 72). Untouched. Nothing tuned on them.
+- Dev totals (event level, 16 anomalies): global+pruning tp2/fp0/fn14; global no pruning 6/4/10; windowed+pruning 5/4/11; windowed no pruning 11/17/5 (precision 0.39, recall 0.69).
+- Windowed = paper-style: trailing 2100-step window, stride 70, EWMA span 105, threshold per window. Global = one threshold per file, span 30.
+- Dev misses: weaker anomaly beside a stronger one (P-1, T-1, C-1), threshold inflated by a long anomaly (D-1), another region with higher error (F-7, M-1, P-10).
+- False alarms concentrated in A-2 (6) and P-1 (4). Open question: some may be smoothing lag just after an anomaly (check with scripts/show_flags.py).
+
+To resume:
+1. Settle the scoring rule on the dev channels first (tolerance for flags next to an anomaly). Do not touch final-set results before that.
+2. Run `python scripts/train_all.py` (resumable, skips channels with results/preds/*.npz, about 8-10 h; sleep off, charger on). Errors go to results/train_errors.txt.
+3. Score all four variants on the final set, report all four, say which was best on dev. No tuning after seeing the final set.
+
+Deviations from the original (README): predicts 1 step ahead (original 10), patience 5 (original 10), validation split 0.3 (original 0.2).
+
+
+## Phase 5 closing + Phase 8 v1
+- Scoring rule kept as strict overlap. Of the 17 windowed false alarms only 1 is near an anomaly (P-1, 54 steps after the end); the rest are 1-10 step blips far from any anomaly. No tolerance rule, no minimum-length filter (would be tuning on labels).
+- A-2 windowed detection fires 16 steps after the anomaly starts (global detector: about 100).
+- README limits: event-level scoring is generous for long anomalies (D-1: 3,258 steps, about 380 covered, counts as caught); P-1 misses 2 of 3 anomalies with nothing flagged near them.
+- Dashboard v1: static page, dashboard/index.html + dashboard/data/*.json from scripts/export_replay.py. Detector shown: windowed, no pruning.
