@@ -7,7 +7,7 @@ simple baselines and evaluate it honestly, including where it fails.
 > This is a replay of publicly released data with precomputed results. It is not live, not
 > connected to any spacecraft, and not a NASA project.
 
-**Demo:** link added after deployment (a replay view and an operations console).
+**Demo:** [SpaceSense](https://derickdidas.github.io/spacesense/)
 
 ## What it does
 
