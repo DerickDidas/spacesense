@@ -1,0 +1,72 @@
+[
+ {
+  "channel": "P-1",
+  "spacecraft": "SMAP",
+  "n_steps": 8505,
+  "n_truth": 3,
+  "n_flags": 5
+ },
+ {
+  "channel": "E-2",
+  "spacecraft": "SMAP",
+  "n_steps": 8532,
+  "n_truth": 1,
+  "n_flags": 1
+ },
+ {
+  "channel": "A-2",
+  "spacecraft": "SMAP",
+  "n_steps": 7914,
+  "n_truth": 1,
+  "n_flags": 7
+ },
+ {
+  "channel": "T-1",
+  "spacecraft": "SMAP",
+  "n_steps": 8612,
+  "n_truth": 2,
+  "n_flags": 2
+ },
+ {
+  "channel": "D-1",
+  "spacecraft": "SMAP",
+  "n_steps": 8509,
+  "n_truth": 1,
+  "n_flags": 5
+ },
+ {
+  "channel": "M-1",
+  "spacecraft": "MSL",
+  "n_steps": 2277,
+  "n_truth": 1,
+  "n_flags": 1
+ },
+ {
+  "channel": "M-6",
+  "spacecraft": "MSL",
+  "n_steps": 2049,
+  "n_truth": 1,
+  "n_flags": 2
+ },
+ {
+  "channel": "P-10",
+  "spacecraft": "MSL",
+  "n_steps": 6100,
+  "n_truth": 1,
+  "n_flags": 2
+ },
+ {
+  "channel": "F-7",
+  "spacecraft": "MSL",
+  "n_steps": 5054,
+  "n_truth": 3,
+  "n_flags": 4
+ },
+ {
+  "channel": "C-1",
+  "spacecraft": "MSL",
+  "n_steps": 2264,
+  "n_truth": 2,
+  "n_flags": 2
+ }
+]

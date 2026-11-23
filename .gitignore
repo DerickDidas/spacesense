@@ -3,7 +3,7 @@ __pycache__/
 *.pyc
 .ipynb_checkpoints/
 .pytest_cache/
-data/
+/data/
 *.zip
 labeled_anomalies.csv
 results/models/
