@@ -81,3 +81,18 @@ Deviations from the original (README): predicts 1 step ahead (original 10), pati
 - A-2 windowed detection fires 16 steps after the anomaly starts (global detector: about 100).
 - README limits: event-level scoring is generous for long anomalies (D-1: 3,258 steps, about 380 covered, counts as caught); P-1 misses 2 of 3 anomalies with nothing flagged near them.
 - Dashboard v1: static page, dashboard/index.html + dashboard/data/*.json from scripts/export_replay.py. Detector shown: windowed, no pruning.
+
+
+## Phase 6 setup: final-set training
+- 71 final channels (all labeled channels minus the 10 dev ones). train_all.py took 145 min for 41 channels (the earlier 8-10 h estimate was too high).
+- 9 channels crashed: no validation windows left (training file too short for the 250-step validation gap). Fix: fewer than 50 validation windows (MIN_VAL) = train on all windows for fixed 35 epochs, no validation. Applied to T-12 and T-13 too (19 validation windows) and retrained. Decided from the crash, before any final-set detection result.
+- Expectations to check (not conclusions): train/test shift on P-14, P-15; relative thresholds on near-constant channels (G-2, R-1, P-4, T-5, G-3) may raise false alarms; S-1 did not converge; F-1, F-4, M-2, M-3, T-2, T-4 hit the 35-epoch cap while still improving.
+- Pre-declared: report all four variants, all channels and excluding short-training channels, by spacecraft and by anomaly type. No tuning after seeing the final numbers.
+
+
+## Phase 6: final evaluation (71 channels, 89 labeled anomalies, untouched until now)
+- Global pruned 26 tp / 1 fp / 63 fn; global 52/16/37; windowed pruned 51/15/38; windowed 71/156/18.
+- Dev-set ranking did not hold: windowed/no pruning was best F1 on dev (0.50) but on final it has the best recall (0.80) and worst precision (0.31, 3.47 false alarms per 10k steps). Global and windowed+pruning tie at F1 0.66. All four reported; no tuning after seeing results.
+- SMAP easier than MSL (windowed pruned F1 0.73 vs 0.47). Contextual anomalies harder than point (caught 0.42-0.70 vs 0.68-0.86). Median first-alert delay about 50 steps.
+- Excluding the 11 short-training channels does not change the ranking.
+- Not yet done: baselines (z-score, Isolation Forest) on the final set; failure analysis of false-alarm channels (scripts/top_fp.py).

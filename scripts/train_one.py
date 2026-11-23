@@ -13,6 +13,8 @@ from src.config import FIG_DIR, MODEL_DIR, PRED_DIR, WINDOW, ensure_dirs, set_se
 from src.data import load_channel, load_labels, true_anomalies
 from src.model import LSTMForecaster, WindowDataset
 
+MIN_VAL = 50  # fewer validation windows than this: train without validation
+
 
 def predict(model, x, batch: int = 256):
     model.eval()
@@ -32,15 +34,18 @@ def main(chan: str, epochs: int, patience: int):
     # chronological split; validation starts WINDOW steps later so its inputs
     # never contain a training target
     split = int(n_windows * 0.7)
-    train_ds = WindowDataset(train, start=0, stop=split)
     val_ds = WindowDataset(train, start=split + WINDOW, stop=n_windows)
-    print(f"{chan}: train windows {len(train_ds)}, val windows {len(val_ds)}, inputs {train.shape[1]}")
+    use_val = len(val_ds) >= MIN_VAL
+    train_ds = WindowDataset(train, start=0, stop=split if use_val else n_windows)
+    note = "" if use_val else "  (short channel: fixed epochs, no validation)"
+    print(f"{chan}: train windows {len(train_ds)}, val windows {len(val_ds) if use_val else 0}, "
+          f"inputs {train.shape[1]}{note}")
 
     model = LSTMForecaster(train.shape[1])
     opt = torch.optim.Adam(model.parameters(), lr=1e-3)
     loss_fn = nn.MSELoss()
     tl = DataLoader(train_ds, batch_size=64, shuffle=True)
-    vl = DataLoader(val_ds, batch_size=256)
+    vl = DataLoader(val_ds, batch_size=256) if use_val else None
 
     best, bad, hist = float("inf"), 0, []
     ckpt = MODEL_DIR / f"{chan}.pt"
@@ -54,6 +59,11 @@ def main(chan: str, epochs: int, patience: int):
             opt.step()
             tot += loss.item() * len(xb)
         tr = tot / len(train_ds)
+
+        if not use_val:
+            hist.append((tr, float("nan")))
+            print(f"epoch {ep:2d}  train {tr:.5f}")
+            continue
 
         model.eval()
         vt = 0.0
@@ -73,7 +83,11 @@ def main(chan: str, epochs: int, patience: int):
                 print("early stopping")
                 break
 
-    model.load_state_dict(torch.load(ckpt))
+    if use_val:
+        model.load_state_dict(torch.load(ckpt))
+    else:
+        torch.save(model.state_dict(), ckpt)
+
     y_hat = predict(model, test)
     y_true = test[WINDOW:, 0]
     err = np.abs(y_true - y_hat)
